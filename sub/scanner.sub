@@ -1,0 +1,86 @@
+# USB scanner devices creation script for CLIP
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright © 2011-2018 ANSSI. All Rights Reserved.
+# Copyright 2011 SGDSN/ANSSI
+# Author: ANSSI <clipos@ssi.gouv.fr>
+#
+# All rights reserved
+
+# config file must have a line:
+# SCANNER_DEVPATH="/mounts/vsdev/rm_b/user_devs"
+
+SYSPATH="/sys/class/usb/"
+STATEDIR="/var/run"
+
+source "/lib/clip/import.sub"
+source "/etc/conf.d/clip"
+
+ADMIN_FILE="/etc/admin/conf.d/devices"
+JAILS_IMPORT_FILTER="${CLIP_JAILS/ /|}|prompt"
+
+device_usb_major="000"
+device_usb_minor="042"
+
+#############################
+#                           #
+# DEVICE CREATION FUNCTIONS #
+#                           #
+#############################
+
+make_scannerdevs() {
+	local ret=0
+	local d=
+	local devpath= jail=
+
+	import_conf_noerr "${ADMIN_FILE}" "${JAILS_IMPORT_FILTER}" "SCANNER_JAIL" 2>/dev/null
+	eval "jail=$(echo \${SCANNER_JAIL})"
+
+	[[ -n "${jail}" ]] || return 0
+	devpath="/mounts/vsdev/${jail}/user_devs"
+
+	if [[ -e "${devpath}/usb" && ! -d "${devpath}/usb" ]]; then
+		rm -f "${devpath}/usb" && mkdir "${devpath}/usb"
+		if [[ $? -ne 0 ]]; then
+			return 1
+		fi
+	fi
+
+	local rmdir="${devpath}/bus/usb/${device_usb_major}"
+	local rmdev="${rmdir}/${device_usb_minor}"
+
+	if [[ ! -d "${rmdir}" ]]; then
+		mkdir -p "${rmdir}" || return 1
+	fi
+	if [[ -e "${rmdev}" ]]; then
+		rm -f "${rmdev}" 
+	fi
+	mknod -m 0666 "${rmdev}" c ${MAJOR} ${MINOR} || return 1
+	echo "${jail}" > "${STATEDIR}/scanner.jail"
+
+	return 0
+}
+
+remove_scannerdevs() {
+	local ret=0
+	local d=
+	local devpath=
+	local jail="$(cat "${STATEDIR}/scanner.jail" 2>/dev/null)"
+
+	[[ -n "${jail}" ]] || return 0
+	devpath="/mounts/vsdev/${jail}/user_devs"
+
+	local rmdir="${devpath}/bus/usb/${device_usb_major}"
+	local rmdev="${rmdir}/${device_usb_minor}"
+
+	if [[ -c "${rmdev}" ]]; then
+		rm -f "${rmdev}" || ret=1
+	fi
+
+	if [[ -d "${rmdir}" ]]; then
+		rmdir "${rmdir}" || ret=1
+	fi
+
+	return 0
+}
+
+

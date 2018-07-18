@@ -1,0 +1,33 @@
+#!/bin/bash
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Copyright © 2011-2018 ANSSI. All Rights Reserved.
+# USB scanner devices creation/removal hotplug handler for CLIP
+# Copyright 2011 SGDSN/ANSSI
+# Author: ANSSI <clipos@ssi.gouv.fr>
+#
+# All rights reserved
+
+source /lib/clip/scanner.sub || exit 1
+
+[[ -n ${MAJOR} ]] || exit 0
+[[ -n ${MINOR} ]] || exit 0
+[[ -n ${DEVPATH} ]] || exit 0
+
+[[ ${MAJOR} == "189" ]] || exit 0
+
+
+case "${1}" in
+	add)
+		make_scannerdevs "${DEVICE}" && clip-device-notify "add" "scanner"
+		;;
+	remove)
+		remove_scannerdevs "${DEVICE}" && clip-device-notify "remove" "scanner"
+		;;
+	*)
+		logger -p daemon.warning "hotplug/scanner: unknown action ${1}"
+		exit 1
+		;;
+esac
+
+exit 0
+
